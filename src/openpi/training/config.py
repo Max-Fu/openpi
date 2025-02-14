@@ -485,7 +485,7 @@ _CONFIGS = [
         data=LeRobotOtterDataConfig(
             repo_id="mlfu7/pi0_conversion",
             base_config=DataConfig(
-                local_files_only=True,  # Set to True for local-only datasets.
+                local_files_only=False,  # Set to True for local-only datasets.
                 prompt_from_task=True,
             ),
         ),
@@ -502,7 +502,7 @@ _CONFIGS = [
         data=LeRobotOtterDataConfig(
             repo_id="mlfu7/pi0_conversion",
             base_config=DataConfig(
-                local_files_only=True,  # Set to True for local-only datasets.
+                local_files_only=False,  # Set to True for local-only datasets.
                 prompt_from_task=True,
             ),
         ),
