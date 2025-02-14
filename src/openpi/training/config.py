@@ -290,6 +290,43 @@ class LeRobotLiberoDataConfig(DataConfigFactory):
             data_transforms=data_transforms,
             model_transforms=model_transforms,
         )
+    
+@dataclasses.dataclass(frozen=True)
+class LeRobotOtterDataConfig(DataConfigFactory):
+    @override
+    def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
+        # Make inputs look like they come from the Libero environment
+        repack_transform = _transforms.Group(
+            inputs=[
+                _transforms.RepackTransform(
+                    {
+                        "observation/exterior_image_1_left": "exterior_image_1_left",
+                        "observation/wrist_image_left": "wrist_image_left",
+                        "observation/joint_position": "joint_position",
+                        "observation/gripper_position": "gripper_position",
+                        "actions": "actions",
+                        "prompt": "prompt",
+                    }
+                )
+            ]
+        )
+
+        # Prepare data for policy training
+        # Convert images to uint8 numpy arrays, add masks
+        data_transforms = _transforms.Group(
+            inputs=[droid_policy.DroidInputs(action_dim=model_config.action_dim, model_type=model_config.model_type)],
+            outputs=[droid_policy.DroidOutputs()],
+        )
+
+        # Model transforms include things like tokenizing the prompt and action targets
+        model_transforms = ModelTransformFactory()(model_config)
+
+        return dataclasses.replace(
+            self.create_base_config(assets_dirs),
+            repack_transforms=repack_transform,
+            data_transforms=data_transforms,
+            model_transforms=model_transforms,
+        )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -438,6 +475,22 @@ _CONFIGS = [
                 prompt_from_task=True,
             ),
         ),
+    ),
+    # 
+    # Fine-tuning OTTER data configs
+    # 
+    TrainConfig(
+        name="pi0_fast_droid_otter",
+        model=pi0_fast.Pi0FASTConfig(action_dim=8, action_horizon=10),
+        data=LeRobotOtterDataConfig(
+            repo_id="mlfu7/pi0_conversion",
+            base_config=DataConfig(
+                local_files_only=True,  # Set to True for local-only datasets.
+                prompt_from_task=True,
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_fast_base/params"),
+        num_train_steps=30_000,
     ),
     #
     # Fine-tuning Libero configs.

@@ -36,7 +36,10 @@ class DroidInputs(transforms.DataTransformFn):
     model_type: _model.ModelType = _model.ModelType.PI0
 
     def __call__(self, data: dict) -> dict:
-        state = np.concatenate([data["observation/joint_position"], data["observation/gripper_position"]])
+        gripper_position = data["observation/gripper_position"]
+        if gripper_position.ndim == 0:
+            gripper_position = gripper_position[None]
+        state = np.concatenate([data["observation/joint_position"], gripper_position])
         state = transforms.pad_to_dim(state, self.action_dim)
 
         # Possibly need to parse images to uint8 (H,W,C) since LeRobot automatically
