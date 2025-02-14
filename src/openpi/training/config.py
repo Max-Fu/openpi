@@ -496,6 +496,23 @@ _CONFIGS = [
         ).get_freeze_filter(),
         ema_decay=None,
     ),
+    TrainConfig(
+        name="pi0_fast_droid_pretrained_otter",
+        model=pi0_fast.Pi0FASTConfig(action_dim=8, action_horizon=10, paligemma_variant="gemma_2b_lora"),
+        data=LeRobotOtterDataConfig(
+            repo_id="mlfu7/pi0_conversion",
+            base_config=DataConfig(
+                local_files_only=True,  # Set to True for local-only datasets.
+                prompt_from_task=True,
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_fast_droid/params"),
+        num_train_steps=30_000,
+        freeze_filter=pi0_fast.Pi0FASTConfig(
+            action_dim=8, action_horizon=10, paligemma_variant="gemma_2b_lora"
+        ).get_freeze_filter(),
+        ema_decay=None,
+    ),
     #
     # Fine-tuning Libero configs.
     #
