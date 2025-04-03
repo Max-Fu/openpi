@@ -5,6 +5,17 @@ uv run scripts/compute_norm_stats.py --config-name pi0_fast_droid_otter
 (cd lerobot)
 uv pip install -e . 
 CUDA_VISIBLE_DEVICES=6 uv run scripts/train.py pi0_fast_droid_otter --exp-name=pi_0_pretrained_otter_finetune --overwrite
-CUDA_VISIBLE_DEVICES=7 uv run scripts/train.py pi0_fast_droid_pretrained_otter --exp-name=pi_0_pretrained_otter_finetune --overwrite
+CUDA_VISIBLE_DEVICES=7 uv run scripts/train.py pi0_fast_droid_pretrained_otter --exp-name=pi0_fast_droid_pretrained_otter --overwrite
 
 Writing stats to: /home/mfu/Documents/icrl/openpi/assets/pi0_fast_droid_otter/mlfu7/pi0_conversion
+
+Inference: 
+uv run scripts/serve_policy.py --env=PI0_OTTER
+or 
+uv run scripts/serve_policy.py --env=DROID_OTTER
+or 
+uv run scripts/serve_policy.py --env=DROID
+
+then run: 
+go to /home/mfu/Documents/icrl/icrl_physical/scripts
+python scripts/main_openpi.py --external_camera="left"
