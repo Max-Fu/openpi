@@ -37,7 +37,7 @@ LANGUAGE_INSTRUCTIONS = [
     "put the white cup on the coffee machine"
 ]
 
-REPO_NAME = "mlfu7/dpgs_conversion"  # Name of the output dataset, also used for the Hugging Face Hub
+REPO_NAME = "mlfu7/dpgs_conversion_video"  # Name of the output dataset, also used for the Hugging Face Hub
 
 CAMERA_KEYS = [
     "camera_0/rgb", 
@@ -66,12 +66,12 @@ def main():
         fps=15,
         features={
             "exterior_image_1_left": {
-                "dtype": "image",
+                "dtype": "video",
                 "shape": (RESIZE_SIZE, RESIZE_SIZE, 3),
                 "names": ["height", "width", "channel"],
             },
             "exterior_image_2_left": {
-                "dtype": "image",
+                "dtype": "video",
                 "shape": (RESIZE_SIZE, RESIZE_SIZE, 3),
                 "names": ["height", "width", "channel"],
             },
@@ -86,8 +86,8 @@ def main():
                 "names": ["actions"],
             },
         },
-        image_writer_threads=10,
-        image_writer_processes=5,
+        image_writer_threads=20,
+        image_writer_processes=10,
     )
 
     # Loop over raw Libero datasets and write episodes to the LeRobot dataset

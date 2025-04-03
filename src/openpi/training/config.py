@@ -556,7 +556,7 @@ _CONFIGS = [
         name="pi0_fast_yumi",
         model=pi0_fast.Pi0FASTConfig(action_dim=16, action_horizon=10, paligemma_variant="gemma_2b_lora"),
         data=LeRobotYumiDataConfig(
-            repo_id="mlfu7/pi0_conversion",
+            repo_id="mlfu7/dpgs_conversion_video",
             base_config=DataConfig(
                 local_files_only=False,  # Set to True for local-only datasets.
                 prompt_from_task=True,
@@ -573,7 +573,7 @@ _CONFIGS = [
         name="pi0_fast_droid_pretrained_yumi",
         model=pi0_fast.Pi0FASTConfig(action_dim=16, action_horizon=10, paligemma_variant="gemma_2b_lora"),
         data=LeRobotYumiDataConfig(
-            repo_id="mlfu7/pi0_conversion",
+            repo_id="mlfu7/dpgs_conversion_video",
             base_config=DataConfig(
                 local_files_only=False,  # Set to True for local-only datasets.
                 prompt_from_task=True,
