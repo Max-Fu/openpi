@@ -4,8 +4,10 @@ source .venv/bin/activate
 uv run scripts/compute_norm_stats.py --config-name pi0_fast_droid_otter
 (cd lerobot)
 uv pip install -e . 
-CUDA_VISIBLE_DEVICES=6 uv run scripts/train.py pi0_fast_droid_otter --exp-name=pi_0_pretrained_otter_finetune --overwrite
+CUDA_VISIBLE_DEVICES=4 uv run scripts/train.py pi0_fast_droid_otter --exp-name=pi_0_pretrained_otter_finetune_1 --overwrite
 CUDA_VISIBLE_DEVICES=7 uv run scripts/train.py pi0_fast_droid_pretrained_otter --exp-name=pi0_fast_droid_pretrained_otter --overwrite
+
+CUDA_VISIBLE_DEVICES=4 uv run scripts/train.py pi0_fast_yumi --exp-name=pi0_fast_yumi_finetune --overwrite
 
 Writing stats to: /home/mfu/Documents/icrl/openpi/assets/pi0_fast_droid_otter/mlfu7/pi0_conversion
 
