@@ -1,17 +1,12 @@
 import os 
 import numpy as np
-import torch
 from openpi.training import config
 from openpi.policies import policy_config
-from openpi.shared import download
-import numpy as np
-from openpi.policies import yumi_policy
-from PIL import Image
 from openpi_client.image_tools import resize_with_pad
 
 RESIZE_SIZE = 224
 
-class DiffusionWrapper():
+class OpenPIWrapper():
     def __init__(
         self, 
         model_ckpt_folder : str, 
@@ -29,10 +24,9 @@ class DiffusionWrapper():
         ckpt_id = 29999
         device = "cuda"
         """
-        config = config.get_config("pi0_fast_yumi")
         checkpoint_dir = os.path.join(model_ckpt_folder, f"{ckpt_id}")
         # Create a trained policy.
-        self.policy = policy_config.create_trained_policy(config, checkpoint_dir)
+        self.policy = policy_config.create_trained_policy(config.get_config("pi0_fast_yumi"), checkpoint_dir)
         self.text_prompt = text_prompt
 
     def __call__(self, nbatch):
@@ -91,9 +85,14 @@ class DiffusionWrapper():
         action = self.policy.infer(batch)
         # remove the gripper command from the joint position, since the model is predicting delta joint positions
         # and absolute gripper positions 
-        joint_positions[-2:] = 0
+        joint_positions = joint_positions[:-2]
         # convert to absolute action and append gripper command
         # action["actions"] shape: (10, 16), joint_positions shape: (16,)
         # Need to broadcast joint_positions to match action sequence length
-        target_joint_positions = action["actions"] + joint_positions[None, :]  # Shape: (10, 16)
+        target_joint_positions = action["actions"].copy()[:, :-2]
+        target_gripper_positions = action["actions"].copy()[:, -2:]
+        target_joint_positions[0] += joint_positions
+        for i in range(1, target_joint_positions.shape[0]):
+            target_joint_positions[i] += target_joint_positions[i-1]
+        target_joint_positions = np.concatenate([target_joint_positions, target_gripper_positions], axis=-1)
         return target_joint_positions
