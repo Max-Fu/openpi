@@ -1,4 +1,5 @@
 export LEROBOT_HOME=/mnt/8tb-drive/lerobot_conversion/lerobot
+export LEROBOT_HOME=/shared/projects/icrl/data/dpgs/lerobot
 source $HOME/.local/bin/env
 source .venv/bin/activate
 uv run scripts/compute_norm_stats.py --config-name pi0_fast_droid_otter

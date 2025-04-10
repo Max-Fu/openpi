@@ -587,9 +587,10 @@ _CONFIGS = [
         name="pi0_fast_yumi",
         model=pi0_fast.Pi0FASTConfig(action_dim=16, action_horizon=10, paligemma_variant="gemma_2b_lora"),
         data=LeRobotYumiDataConfig(
-            repo_id="mlfu7/dpgs_conversion_video",
+            # repo_id="mlfu7/dpgs_conversion_video", # coffee maker 1k
+            repo_id="mlfu7/dpgs_sim_coffee_maker_5k",
             base_config=DataConfig(
-                local_files_only=False,  # Set to True for local-only datasets.
+                local_files_only=True,  # Set to True for local-only datasets.
                 prompt_from_task=True,
             ),
         ),
