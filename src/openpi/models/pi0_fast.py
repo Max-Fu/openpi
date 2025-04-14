@@ -335,8 +335,9 @@ class Pi0FAST(_model.BaseModel):
                     jnp.zeros((), jnp.int32),  # Return shape and dtype
                     output_tokens,
                 )
-            
                 return (~all_eos) & (step < max_decoding_steps) & (decoded_length < dct_coeff_early_stop * self.config.action_dim)
+            if dct_coeff_early_stop is not None and dct_coeff_early_stop > self.config.action_horizon:
+                raise ValueError("dct_coeff_early_stop must be set less than or equal to the action horizon length.")
             else:
                 return (~all_eos) & (step < max_decoding_steps)
 
