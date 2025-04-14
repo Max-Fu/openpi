@@ -19,7 +19,7 @@ Running this conversion script will take approximately 30 minutes.
 """
 
 import os 
-os.environ["LEROBOT_HOME"] = "/mnt/8tb-drive/lerobot_conversion/lerobot"
+os.environ["LEROBOT_HOME"] = "/shared/projects/icrl/data/dpgs/lerobot"
 import shutil
 import h5py 
 from lerobot.common.datasets.lerobot_dataset import LEROBOT_HOME
@@ -31,13 +31,13 @@ from PIL import Image
 from openpi_client.image_tools import resize_with_pad
 
 RAW_DATASET_FOLDERS = [
-    "/mnt/8tb-drive/dpgs/sim_coffee_maker/successes_031725_2027"
+    "/home/yujustin/dataset/dp_gs/sim_coffee_maker/successes_040925"
 ]
 LANGUAGE_INSTRUCTIONS = [
     "put the white cup on the coffee machine"
 ]
 
-REPO_NAME = "mlfu7/dpgs_conversion_video"  # Name of the output dataset, also used for the Hugging Face Hub
+REPO_NAME = "mlfu7/dpgs_sim_coffee_maker_5k"  # Name of the output dataset, also used for the Hugging Face Hub
 
 CAMERA_KEYS = [
     "camera_0/rgb", 

@@ -6,7 +6,7 @@ import dataclasses
 import difflib
 import logging
 import pathlib
-from typing import Any, Protocol, TypeAlias
+from typing import Any, Protocol, TypeAlias, List
 
 import etils.epath as epath
 import flax.nnx as nnx
@@ -91,6 +91,8 @@ class DataConfig:
     # If true, will disable syncing the dataset from the Hugging Face Hub. Allows training on local-only datasets.
     local_files_only: bool = False
 
+    # episodes index to use for training 
+    episodes_index : List[int] | None = None
 
 class GroupFactory(Protocol):
     def __call__(self, model_config: _model.BaseModelConfig) -> _transforms.Group:
@@ -426,7 +428,8 @@ class TrainConfig:
     # Base directory for config assets (e.g., norm stats).
     assets_base_dir: str = "./assets"
     # Base directory for checkpoints.
-    checkpoint_base_dir: str = "./checkpoints"
+    # checkpoint_base_dir: str = "./checkpoints"
+    checkpoint_base_dir: str = "/home/bys/openpi_checkpoints"
 
     # Random seed that will be used by random generators during training.
     seed: int = 42
@@ -585,18 +588,24 @@ _CONFIGS = [
     # 
     TrainConfig(
         name="pi0_fast_yumi",
-        model=pi0_fast.Pi0FASTConfig(action_dim=16, action_horizon=10, paligemma_variant="gemma_2b_lora"),
+        model=pi0_fast.Pi0FASTConfig(action_dim=16, action_horizon=10, paligemma_variant="gemma_2b"),
+        # model=pi0_fast.Pi0FASTConfig(action_dim=16, action_horizon=10, paligemma_variant="gemma_2b_lora"),
         data=LeRobotYumiDataConfig(
-            repo_id="mlfu7/dpgs_conversion_video",
+            # repo_id="mlfu7/dpgs_conversion_video", # coffee maker 1k
+            repo_id="mlfu7/dpgs_sim_coffee_maker_5k", # coffee maker 5k
             base_config=DataConfig(
-                local_files_only=False,  # Set to True for local-only datasets.
+                local_files_only=True,  # Set to True for local-only datasets.
                 prompt_from_task=True,
+                # episodes_index=list(range(50))
+                # episodes_index=list(range(100))
+                episodes_index=list(range(200)) # subsampling 200
             ),
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_fast_base/params"),
         num_train_steps=30_000,
         freeze_filter=pi0_fast.Pi0FASTConfig(
-            action_dim=16, action_horizon=10, paligemma_variant="gemma_2b_lora"
+            action_dim=16, action_horizon=10, paligemma_variant="gemma_2b"
+            # action_dim=16, action_horizon=10, paligemma_variant="gemma_2b_lora"
         ).get_freeze_filter(),
         ema_decay=None,
     ),
