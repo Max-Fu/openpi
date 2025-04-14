@@ -22,3 +22,5 @@ uv run scripts/serve_policy.py --env=DROID
 then run: 
 go to /home/mfu/Documents/icrl/icrl_physical/scripts
 python scripts/main_openpi.py --external_camera="left"
+
+CUDA_VISIBLE_DEVICES=1 uv run scripts/merge_lora_weights.py pi0_fast_yumi --exp-name=pi0_fast_yumi_finetune --resume

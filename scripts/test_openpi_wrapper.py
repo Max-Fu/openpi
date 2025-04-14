@@ -1,3 +1,5 @@
+import time
+from tqdm import tqdm
 import numpy as np
 from eval_wrapper import OpenPIWrapper
 import tyro
@@ -8,6 +10,7 @@ from typing import Optional
 class TestConfig:
     model_ckpt_folder: str = "/home/mfu/research/openpi/checkpoints/pi0_fast_yumi/pi0_fast_yumi_finetune"
     ckpt_id: int = 29999
+    # ckpt_id: int = 30001
     text_prompt: str = "put the white cup on the coffee machine"
     batch_size: int = 1
     sequence_length: int = 10
@@ -57,7 +60,20 @@ def main(config: TestConfig):
     
     try:
         # Get action from wrapper
-        target_joint_positions = wrapper(nbatch)
+        # Time the function for 10 runs, skipping first warm-up run
+        # Warm-up run
+        _ = wrapper(nbatch)
+        
+        # Time 10 runs
+        times = []
+        for _ in tqdm(range(10), desc="Timing inference"):
+            nbatch = create_dummy_batch(config)
+            start = time.time()
+            target_joint_positions = wrapper(nbatch)
+            times.append(time.time() - start)
+            
+        avg_time = sum(times) / len(times)
+        print(f"\nAverage inference time: {avg_time:.4f} seconds")
         
         # Print output shapes and dtypes
         print("\nOutput shapes and dtypes:")

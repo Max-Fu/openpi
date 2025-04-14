@@ -13,7 +13,8 @@ import jax.experimental
 import jax.numpy as jnp
 import optax
 import tqdm_loggable.auto as tqdm
-import wandb
+import math
+import ml_collections
 
 import openpi.models.model as _model
 import openpi.shared.array_typing as at
@@ -26,6 +27,7 @@ import openpi.training.sharding as sharding
 import openpi.training.utils as training_utils
 import openpi.training.weight_loaders as _weight_loaders
 import openpi.models.pi0 as pi0
+import openpi.models.lora as lora
 
 
 def init_logging():
@@ -45,29 +47,6 @@ def init_logging():
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     logger.handlers[0].setFormatter(formatter)
-
-
-def init_wandb(config: _config.TrainConfig, *, resuming: bool, log_code: bool = False, enabled: bool = True):
-    if not enabled:
-        wandb.init(mode="disabled")
-        return
-
-    ckpt_dir = config.checkpoint_dir
-    if not ckpt_dir.exists():
-        raise FileNotFoundError(f"Checkpoint directory {ckpt_dir} does not exist.")
-    if resuming:
-        run_id = (ckpt_dir / "wandb_id.txt").read_text().strip()
-        wandb.init(id=run_id, resume="must", project=config.project_name)
-    else:
-        wandb.init(
-            name=config.exp_name,
-            config=dataclasses.asdict(config),
-            project=config.project_name,
-        )
-        (ckpt_dir / "wandb_id.txt").write_text(wandb.run.id)
-
-    if log_code:
-        wandb.run.log_code(epath.Path(__file__).parent.parent)
 
 
 def _load_weights_and_validate(loader: _weight_loaders.WeightLoader, params_shape: at.Params) -> at.Params:
@@ -191,6 +170,273 @@ def train_step(
     return new_state, info
 
 
+def _clean_graph_def(graph_def):
+    """Recursively remove keys containing lora suffixes from a nested dict/list/tuple structure."""
+    if isinstance(graph_def, dict):
+        cleaned = {}
+        for k, v in graph_def.items():
+            # Check the key itself and potentially nested structures if key represents a module type
+            if not any(lora_type in str(k).lower() for lora_type in ["lora_a", "lora_b", "lora_config"]):
+                 cleaned[k] = _clean_graph_def(v)
+        return cleaned
+    elif isinstance(graph_def, (list, tuple)):
+        # Filter out list/tuple elements that might be LoRA parameter names directly (less common in graphdefs)
+        cleaned_list = []
+        for x in graph_def:
+             if not (isinstance(x, str) and any(lora_type in x.lower() for lora_type in ["lora_a", "lora_b", "lora_config"])):
+                 cleaned_list.append(_clean_graph_def(x))
+        return type(graph_def)(cleaned_list)
+    else:
+        # Base case: return non-dict/list/tuple elements as is
+        return graph_def
+
+
+def convert_to_base_model(train_state: training_utils.TrainState, config: _config.TrainConfig):
+    """Convert a LoRA-enabled model state to a base model state by merging weights."""
+    logging.info("Starting transform LoRA model to Base model...")
+
+    # 1. Flatten the parameter state first to check for LoRA presence
+    params_dict = train_state.params.to_pure_dict()
+    flattened_params = traverse_util.flatten_dict(params_dict, keep_empty_nodes=True)
+
+    # 2. Detect if LoRA parameters exist in the state
+    found_lora_in_state = False
+    for path in flattened_params:
+        param_name = path[-1]
+        if any(lora_suffix in param_name for lora_suffix in ["lora_a", "lora_b", "_lora_a", "_lora_b"]):
+            found_lora_in_state = True
+            logging.info(f"Detected LoRA parameter in state: {'/'.join(str(p) for p in path)}")
+            break # Found one, no need to check further
+
+    lora_config = None
+    # 3. Determine LoRA config: prioritize config file, fallback to hardcoded defaults if state has LoRA
+    try:
+        if hasattr(config.model, "lora_configs") and config.model.lora_configs:
+            logging.info("Found lora_configs in the provided model config.")
+            lora_configs_dict = config.model.lora_configs
+            if isinstance(lora_configs_dict, ml_collections.ConfigDict):
+                lora_configs_dict = lora_configs_dict.to_dict() # Convert if it's a ConfigDict
+
+            if not isinstance(lora_configs_dict, dict) or not lora_configs_dict:
+                raise ValueError("config.model.lora_configs is not a valid, non-empty dictionary.")
+
+            # Retrieve one LoRA config (prioritize attn/ffn)
+            if 'attn' in lora_configs_dict:
+                lora_config_data = lora_configs_dict['attn']
+            elif 'ffn' in lora_configs_dict:
+                lora_config_data = lora_configs_dict['ffn']
+            else:
+                first_key = next(iter(lora_configs_dict))
+                lora_config_data = lora_configs_dict[first_key]
+                logging.warning(f"Could not find 'attn' or 'ffn' in lora_configs. Using config from key '{first_key}'.")
+
+            # Reconstruct LoRAConfig object
+            if isinstance(lora_config_data, lora.LoRAConfig):
+                lora_config = lora_config_data
+            else:
+                lora_config = lora.LoRAConfig(**lora_config_data)
+        elif found_lora_in_state:
+             # Config missing, but LoRA found in state -> Use hardcoded defaults
+             default_rank = 16
+             default_alpha = 16.0
+             default_rslora = False # Assume False unless specified otherwise
+             logging.warning("LoRA parameters detected in state, but no lora_configs found in the provided config.")
+             logging.warning(f"Using HARDCODED default LoRA parameters: rank={default_rank}, alpha={default_alpha}, rslora={default_rslora}")
+             lora_config = lora.LoRAConfig(rank=default_rank, alpha=default_alpha, rslora=default_rslora)
+
+    except Exception as e:
+        logging.error(f"Error processing LoRA configuration: {e}")
+        if found_lora_in_state:
+             logging.error("Cannot proceed with merge due to configuration error.")
+             # Optionally, re-raise or return original state. Here we prevent merge.
+             lora_config = None # Ensure merge doesn't happen
+        # If no LoRA in state anyway, the error might be less critical, let it proceed to cleanup.
+
+
+    # 4. Proceed with merge or cleanup
+    if lora_config:
+        scaling_value = lora_config.scaling_value
+        logging.info(f"Using LoRA scaling value: {scaling_value} (derived from rank={lora_config.rank}, alpha={lora_config.alpha}, rslora={lora_config.rslora})")
+
+        converted_params = {}
+        processed_lora_paths = set() # Keep track of paths already processed
+
+        logging.info("Identifying LoRA layers and corresponding base weights...")
+        # Group parameters by their parent module path
+        grouped_params = {}
+        for path, value in flattened_params.items():
+            parent_path = path[:-1]
+            param_name = path[-1]
+            if parent_path not in grouped_params:
+                grouped_params[parent_path] = {}
+            grouped_params[parent_path][param_name] = value
+
+        # Iterate through modules to find and merge LoRA weights
+        for parent_path, params in grouped_params.items():
+
+            # Check for and merge Einsum LoRA pattern ('w', 'lora_a', 'lora_b')
+            if "lora_a" in params and "lora_b" in params:
+                if "w" in params:
+                    lora_a_key, lora_b_key, base_key = "lora_a", "lora_b", "w"
+                    _perform_merge(
+                         parent_path, params, lora_a_key, lora_b_key, base_key,
+                         scaling_value, converted_params, processed_lora_paths
+                    )
+                else:
+                    path_str_a = "/".join(str(p) for p in parent_path + ("lora_a",))
+                    logging.warning(f"Found LoRA parameters {path_str_a} and ..._lora_b, but corresponding base weight 'w' is missing. Skipping merge.")
+                    processed_lora_paths.add(parent_path + ("lora_a",))
+                    processed_lora_paths.add(parent_path + ("lora_b",))
+
+            # Check for and merge FeedForward gating LoRA pattern
+            if "gating_einsum_lora_a" in params and "gating_einsum_lora_b" in params:
+                if "gating_einsum" in params:
+                    lora_a_key = "gating_einsum_lora_a"
+                    lora_b_key = "gating_einsum_lora_b"
+                    base_key = "gating_einsum"
+                    _perform_merge(
+                         parent_path, params, lora_a_key, lora_b_key, base_key,
+                         scaling_value, converted_params, processed_lora_paths
+                    )
+                else:
+                    path_str_a = "/".join(str(p) for p in parent_path + ("gating_einsum_lora_a",))
+                    logging.warning(f"Found LoRA parameters {path_str_a} and ..._lora_b, but corresponding base 'gating_einsum' is missing. Skipping merge.")
+                    processed_lora_paths.add(parent_path + ("gating_einsum_lora_a",))
+                    processed_lora_paths.add(parent_path + ("gating_einsum_lora_b",))
+
+            # Check for and merge FeedForward linear LoRA pattern
+            if "linear_lora_a" in params and "linear_lora_b" in params:
+                if "linear" in params:
+                    lora_a_key, lora_b_key, base_key = "linear_lora_a", "linear_lora_b", "linear"
+                    _perform_merge(
+                         parent_path, params, lora_a_key, lora_b_key, base_key,
+                         scaling_value, converted_params, processed_lora_paths
+                    )
+                else:
+                    path_str_a = "/".join(str(p) for p in parent_path + ("linear_lora_a",))
+                    logging.warning(f"Found LoRA parameters {path_str_a} and ..._lora_b, but corresponding base weight 'linear' is missing. Skipping merge.")
+                    processed_lora_paths.add(parent_path + ("linear_lora_a",))
+                    processed_lora_paths.add(parent_path + ("linear_lora_b",))
+
+
+        # Copy over non-LoRA weights that weren't part of a merge
+        logging.info("Copying remaining non-LoRA parameters...")
+        for path, value in flattened_params.items():
+            if path not in processed_lora_paths:
+                 # Check if the path looks like a LoRA parameter that *should* have been processed
+                 param_name = path[-1]
+                 is_potential_lora = any(lora_suffix in param_name for lora_suffix in ["lora_a", "lora_b", "_lora_a", "_lora_b"])
+
+                 if is_potential_lora:
+                     # This should ideally not happen if the checks above were comprehensive.
+                     # Log a warning if we find an unprocessed LoRA parameter here.
+                     logging.warning(f"Found unprocessed LoRA parameter: {'/'.join(str(p) for p in path)}. This might indicate an issue in the merge logic or unexpected parameter structure.")
+                 else:
+                     # Copy genuine non-LoRA parameters
+                     converted_params[path] = value
+
+
+        # Convert back to nested dict and then to nnx.State
+        converted_dict = traverse_util.unflatten_dict(converted_params)
+        final_params = nnx.State(converted_dict)
+
+        # Generate a clean graph definition from a model without LoRA config
+        logging.info("Generating clean graph definition from non-LoRA model config...")
+        try:
+            # Create a clean model config by removing LoRA settings
+            clean_model_config = dataclasses.replace(config.model, lora_configs=None)
+            # Instantiate a dummy model with this clean config to get its graphdef
+            # We need a dummy key for model initialization
+            dummy_rng = jax.random.key(0) # Use a fixed arbitrary key
+            clean_model = clean_model_config.create(dummy_rng)
+            clean_graphdef = nnx.graphdef(clean_model)
+            logging.info("Successfully generated clean graph definition.")
+        except Exception as e:
+            logging.error(f"Failed to generate clean graph definition: {e}")
+            logging.warning("Falling back to cleaning the existing graph definition.")
+            # Fallback to the previous cleaning method if instantiation fails
+            clean_graphdef = _clean_graph_def(train_state.model_def)
+
+
+        # Create the new train state with merged params and clean graph def
+        new_train_state = dataclasses.replace(
+            train_state,
+            params=final_params,
+            model_def=clean_graphdef
+        )
+        logging.info(f"Final merged state:\n{training_utils.array_tree_to_info(new_train_state.params)}")
+        return new_train_state
+
+    else: # No LoRA config found and no LoRA parameters detected in state
+        logging.warning("No LoRA config found in model config and no LoRA parameters detected in state. Assuming no merge needed.")
+        # Attempt to clean the graph def anyway, in case it contains orphaned LoRA nodes
+        cleaned_def = _clean_graph_def(train_state.model_def)
+        return dataclasses.replace(train_state, model_def=cleaned_def)
+
+
+# Define the merge logic as a helper function to avoid repetition
+def _perform_merge(
+    parent_path: tuple,
+    params: dict,
+    lora_a_key: str,
+    lora_b_key: str,
+    base_key: str,
+    scaling_value: float,
+    converted_params: dict,
+    processed_lora_paths: set
+):
+    """Performs the actual LoRA weight merge calculation."""
+    lora_a = params[lora_a_key]
+    lora_b = params[lora_b_key]
+    base_weight = params[base_key]
+    full_base_path = parent_path + (base_key,)
+    full_lora_a_path = parent_path + (lora_a_key,)
+    full_lora_b_path = parent_path + (lora_b_key,)
+
+    # Avoid re-processing if somehow this combination was already handled (defensive check)
+    if full_base_path in processed_lora_paths:
+        return
+
+    path_str = "/".join(str(p) for p in full_base_path)
+    logging.info(f"Processing LoRA merge for: {path_str}")
+    logging.info(f"  Base shape: {base_weight.shape}, dtype: {base_weight.dtype}")
+    logging.info(f"  LoRA A shape: {lora_a.shape}, dtype: {lora_a.dtype}")
+    logging.info(f"  LoRA B shape: {lora_b.shape}, dtype: {lora_b.dtype}")
+
+    # Cast LoRA weights to the base weight dtype (e.g., bfloat16) *before* matmul
+    # to mimic the casting done in the original forward pass (w_a.astype(x.dtype)).
+    lora_a_casted = lora_a.astype(base_weight.dtype)
+    lora_b_casted = lora_b.astype(base_weight.dtype)
+    logging.info(f"  Casting LoRA A/B to {base_weight.dtype} for matmul.")
+
+    # Calculate LoRA delta using the casted dtype
+    lora_delta = jnp.matmul(lora_a_casted, lora_b_casted)
+
+    # Apply scaling factor ONLY for Einsum layers (base_key == "w"), NOT for FeedForward layers.
+    # Note: Since scaling is 1.0, this step is currently a NOP, but we keep the logic.
+    apply_scaling = (base_key == "w")
+    if apply_scaling:
+        scaled_lora_delta = lora_delta # Effectively: (lora_delta * 1.0).astype(base_weight.dtype)
+        logging.info(f"  Applying scaling factor ({scaling_value}) for Einsum merge (effectively NOP as scale=1.0).")
+    else:
+        scaled_lora_delta = lora_delta
+        logging.info(f"  Skipping scaling factor for FeedForward ({base_key}) merge.")
+
+    # Perform the merge. All tensors should now be in base_weight.dtype.
+    merged_weight = base_weight + scaled_lora_delta
+
+    logging.info(f"  Merged shape: {merged_weight.shape}, dtype: {merged_weight.dtype}")
+
+    # Store merged weight and mark LoRA paths as processed
+    converted_params[full_base_path] = merged_weight
+    processed_lora_paths.add(full_lora_a_path)
+    processed_lora_paths.add(full_lora_b_path)
+    processed_lora_paths.add(full_base_path) # Mark base as processed too, as it's now the merged one
+
+    # Clean up memory
+    del lora_a, lora_b, base_weight, lora_a_casted, lora_b_casted, merged_weight, lora_delta, scaled_lora_delta
+    jax.clear_caches()
+
 
 def main(config: _config.TrainConfig):
     init_logging()
@@ -216,7 +462,6 @@ def main(config: _config.TrainConfig):
         overwrite=config.overwrite,
         resume=config.resume,
     )
-    init_wandb(config, resuming=resuming, enabled=config.wandb_enabled)
 
     data_loader = _data_loader.create_data_loader(
         config,
@@ -236,103 +481,14 @@ def main(config: _config.TrainConfig):
         train_state = _checkpoints.restore_state(checkpoint_manager, train_state, data_loader)
     step = int(train_state.step)
 
-    def convert_to_base_model(train_state):
-        """convert lora model to base model"""
-        logging.info("Starting transform LoRA model to Base model...")
-        
-        # 1. switch train_state to dict
-        params_dict = train_state.params.to_pure_dict()
-        flattened = traverse_util.flatten_dict(params_dict)
-        converted = {}
-        
-        # 2. find all layers include lora
-        lora_layers = []
-        for path, value in flattened.items():
-            path_str = "/".join(str(p) for p in path)
-            if isinstance(value, (jnp.ndarray, jax.Array)):  # 直接检查数组类型
-                if "lora_A" in path_str or "lora_a" in path_str:
-                    logging.info(f"Find LoRA Layer: {path_str}")
-                    lora_layers.append(path)
-        
-        logging.info(f"Totally find {len(lora_layers)} LoRA Layers")
-        
-        # 3. process every lora layer
-        for i, lora_a_path in enumerate(lora_layers):
-            path_str = "/".join(str(p) for p in lora_a_path)
-            logging.info(f"processing {i+1}/{len(lora_layers)} LoRA Layer: {path_str}")
-            
-            # get lora layer and original layer
-            if "/mlp" not in path_str:
-                base_path = tuple(str(p).replace("lora_a", "w") if isinstance(p, str) else p for p in lora_a_path)
-                lora_b_path = tuple(str(p).replace("lora_a", "lora_b") if isinstance(p, str) else p for p in lora_a_path)
-            else:
-                base_path = tuple(str(p).replace("_lora_a", "") if isinstance(p, str) else p for p in lora_a_path)
-                lora_b_path = tuple(str(p).replace("lora_a", "lora_b") if isinstance(p, str) else p for p in lora_a_path)
-
-            # get weight
-            lora_a = flattened[lora_a_path]
-            lora_b = flattened[lora_b_path]
-            base_weight = flattened[base_path]
-
-            
-            # use bfloat16 to save memory
-            lora_a = lora_a.astype(jnp.bfloat16)
-            lora_b = lora_b.astype(jnp.bfloat16)
-
-            logging.info("cal merge weight...")
-            logging.info(f"lora_a shape {lora_a.shape}, dtype {lora_a.dtype}")
-            logging.info(f"lora_b shape {lora_b.shape}, dtype {lora_b.dtype}")
-            logging.info(f"w shape {base_weight.shape}, dtype {base_weight.dtype}")
-            
-            # merge lora to original layer
-            lora_weight = jnp.matmul(lora_a, lora_b)
-            merged_weight = base_weight + lora_weight.astype(base_weight.dtype)
-            logging.info(f"merged_weight shape {merged_weight.shape}, dtype {merged_weight.dtype}")
-            
-            # update weight
-            converted[base_path] = merged_weight
-            
-            # release variables
-            del lora_weight, merged_weight
-            jax.clear_caches()
-        
-        # 4. repeat non-lora weights
-        for path, value in flattened.items():
-            path_str = "/".join(str(p) for p in path)
-            if not any(x in path_str.lower() for x in ["lora_a", "lora_b", "lora_rank"]):
-                converted[path] = value
-        
-        # 5. convert dict back to PyTree format
-        converted_dict = traverse_util.unflatten_dict(converted)
-        converted_params = nnx.State(converted_dict)
-        
-        # 6. remove lora node in graph
-        def clean_graph(graph_def):
-            if isinstance(graph_def, dict):
-                cleaned = {k: v for k, v in graph_def.items() 
-                         if not any(lora_type in str(k).lower() 
-                                  for lora_type in ["lora_a", "lora_b", "lora_rank"])}
-                return {k: clean_graph(v) for k, v in cleaned.items()}
-            elif isinstance(graph_def, (list, tuple)):
-                return type(graph_def)(clean_graph(x) for x in graph_def)
-            else:
-                return graph_def
-        
-        cleaned_def = clean_graph(train_state.model_def)
-        
-        # 7. create new train_state
-        return dataclasses.replace(
-            train_state,
-            params=converted_params,
-            model_def=cleaned_def
-        )
-
     # transform model
-    train_state = convert_to_base_model(train_state)
+    train_state = convert_to_base_model(train_state, config)
     logging.info("Transformation Completed")
-    
-    # save model, index=step+1
-    _checkpoints.save_state(checkpoint_manager, train_state, data_loader, step+1)
+
+    # save model, index=step+1 - Use a distinct step or name convention for merged models
+    merged_step = step + 1 # Or use a large number, or a specific name
+    logging.info(f"Saving merged model state at step {merged_step}...")
+    _checkpoints.save_state(checkpoint_manager, train_state, data_loader, merged_step) # Save with new step/ID
 
     logging.info("Waiting for checkpoint manager to finish")
     checkpoint_manager.wait_until_finished()
