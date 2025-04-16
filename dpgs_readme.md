@@ -63,7 +63,7 @@ for Multi-GPU training, update `fsdp_devices` to the number of GPUs you have.
 uv run scripts/train.py pi0_fast_sim_yumi_drawer_50 --exp-name=pi0_fast_sim_yumi_drawer_50 --checkpoint-base-dir /path/to/checkpoint-base-dir --overwrite --fsdp_devices 2
 ```
 
-for resuming training, change the `resume_from` argument to the checkpoint you want to resume from. 
+for resuming training, change the `--overwrite` argument to `--resume`. 
 ```bash
 uv run scripts/train.py pi0_fast_sim_yumi_drawer_50 --exp-name=pi0_fast_sim_yumi_drawer_50 --checkpoint-base-dir /path/to/checkpoint-base-dir --resume --fsdp_devices 1
 ```
