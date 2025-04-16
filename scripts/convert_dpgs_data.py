@@ -34,15 +34,19 @@ RAW_DATASET_FOLDERS = [
     # "/mnt/disks/ssd7/dpgs_dataset/yumi_coffee_maker/successes_041325"
     # "/mnt/disks/ssd7/dpgs_dataset/yumi_faucet/successes_041425",
     "/mnt/disks/ssd7/dpgs_dataset/yumi_led_light/successes_041425_2334"
+    # "/shared/projects/dpgs_dataset/yumi_faucet/successes_041425" # bajcsy
+    # "/shared/projects/dpgs_dataset/yumi_drawer_open/successes_041525_2044" # bajcsy
 ]
 LANGUAGE_INSTRUCTIONS = [
-    # "put the white cup on the coffee machine"
+    # # "put the white cup on the coffee machine"
+    # "open the drawer"
     # "turn off the faucet"
     "turn the LED light"
 ]
 
-# REPO_NAME = "mlfu7/dpgs_sim_coffee_maker_5k_updated"  # Name of the output dataset, also used for the Hugging Face Hub
+# # REPO_NAME = "mlfu7/dpgs_sim_faucet_maker_5k_updated"  # Name of the output dataset, also used for the Hugging Face Hub
 # REPO_NAME = "mlfu7/dpgs_sim_faucet_5k"  # Name of the output dataset, also used for the Hugging Face Hub
+# REPO_NAME = "mlfu7/dpgs_sim_drawer_open_1k"  # Name of the output dataset, also used for the Hugging Face Hub
 REPO_NAME = "mlfu7/dpgs_sim_led_5k"  # Name of the output dataset, also used for the Hugging Face Hub
 
 CAMERA_KEYS = [
