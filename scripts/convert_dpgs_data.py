@@ -19,7 +19,7 @@ Running this conversion script will take approximately 30 minutes.
 """
 
 import os 
-os.environ["LEROBOT_HOME"] = "/shared/projects/icrl/data/dpgs/lerobot"
+os.environ["LEROBOT_HOME"] = "/mnt/disks/ssd1/lerobot"
 import shutil
 import h5py 
 from lerobot.common.datasets.lerobot_dataset import LEROBOT_HOME
@@ -31,13 +31,19 @@ from PIL import Image
 from openpi_client.image_tools import resize_with_pad
 
 RAW_DATASET_FOLDERS = [
-    "/home/yujustin/dataset/dp_gs/sim_coffee_maker/successes_040925"
+    # "/mnt/disks/ssd7/dpgs_dataset/yumi_coffee_maker/successes_041325"
+    # "/mnt/disks/ssd7/dpgs_dataset/yumi_faucet/successes_041425",
+    "/mnt/disks/ssd7/dpgs_dataset/yumi_led_light/successes_041425_2334"
 ]
 LANGUAGE_INSTRUCTIONS = [
-    "put the white cup on the coffee machine"
+    # "put the white cup on the coffee machine"
+    # "turn off the faucet"
+    "turn the LED light"
 ]
 
-REPO_NAME = "mlfu7/dpgs_sim_coffee_maker_5k"  # Name of the output dataset, also used for the Hugging Face Hub
+# REPO_NAME = "mlfu7/dpgs_sim_coffee_maker_5k_updated"  # Name of the output dataset, also used for the Hugging Face Hub
+# REPO_NAME = "mlfu7/dpgs_sim_faucet_5k"  # Name of the output dataset, also used for the Hugging Face Hub
+REPO_NAME = "mlfu7/dpgs_sim_led_5k"  # Name of the output dataset, also used for the Hugging Face Hub
 
 CAMERA_KEYS = [
     "camera_0/rgb", 
@@ -140,13 +146,13 @@ def main():
 
     print("Dataset saved to ", output_path)
 
-    # Optionally push to the Hugging Face Hub
-    dataset.push_to_hub(
-        tags=["otter", "franka", "pi_0", "multitask"],
-        private=True,
-        push_videos=True,
-        license="apache-2.0",
-    )
+    # # Optionally push to the Hugging Face Hub
+    # dataset.push_to_hub(
+    #     tags=["otter", "franka", "pi_0", "multitask"],
+    #     private=True,
+    #     push_videos=True,
+    #     license="apache-2.0",
+    # )
 
 
 if __name__ == "__main__":
