@@ -651,7 +651,7 @@ _CONFIGS = [
         data=LeRobotYumiDataConfig(
             repo_id="mlfu7/dpgs_sim_drawer_open_1k", # coffee maker 5k updated
             base_config=DataConfig(
-                local_files_only=False, 
+                local_files_only=True, 
                 prompt_from_task=True,
                 episodes_index=list(range(50))
             ),
@@ -670,7 +670,7 @@ _CONFIGS = [
         data=LeRobotYumiDataConfig(
             repo_id="mlfu7/dpgs_sim_drawer_open_1k", # coffee maker 5k updated
             base_config=DataConfig(
-                local_files_only=False, 
+                local_files_only=True, 
                 prompt_from_task=True,
                 episodes_index=list(range(100))
             ),
@@ -689,7 +689,7 @@ _CONFIGS = [
         data=LeRobotYumiDataConfig(
             repo_id="mlfu7/dpgs_sim_drawer_open_1k", # coffee maker 5k updated
             base_config=DataConfig(
-                local_files_only=False, 
+                local_files_only=True, 
                 prompt_from_task=True,
                 episodes_index=list(range(150))
             ),
@@ -708,7 +708,7 @@ _CONFIGS = [
         data=LeRobotYumiDataConfig(
             repo_id="mlfu7/dpgs_sim_drawer_open_1k", # coffee maker 5k updated
             base_config=DataConfig(
-                local_files_only=False, 
+                local_files_only=True, 
                 prompt_from_task=True,
                 episodes_index=list(range(1000))
             ),
@@ -729,7 +729,7 @@ _CONFIGS = [
         data=LeRobotYumiDataConfig(
             repo_id="mlfu7/dpgs_sim_faucet_5k", # coffee maker 5k updated
             base_config=DataConfig(
-                local_files_only=False, 
+                local_files_only=True, 
                 prompt_from_task=True,
                 episodes_index=list(range(50))
             ),
@@ -748,7 +748,7 @@ _CONFIGS = [
         data=LeRobotYumiDataConfig(
             repo_id="mlfu7/dpgs_sim_faucet_5k", # coffee maker 5k updated
             base_config=DataConfig(
-                local_files_only=False, 
+                local_files_only=True, 
                 prompt_from_task=True,
                 episodes_index=list(range(100))
             ),
@@ -767,7 +767,7 @@ _CONFIGS = [
         data=LeRobotYumiDataConfig(
             repo_id="mlfu7/dpgs_sim_faucet_5k", # coffee maker 5k updated
             base_config=DataConfig(
-                local_files_only=False, 
+                local_files_only=True, 
                 prompt_from_task=True,
                 episodes_index=list(range(150))
             ),
@@ -786,7 +786,7 @@ _CONFIGS = [
         data=LeRobotYumiDataConfig(
             repo_id="mlfu7/dpgs_sim_faucet_5k", # coffee maker 5k updated
             base_config=DataConfig(
-                local_files_only=False, 
+                local_files_only=True, 
                 prompt_from_task=True,
                 episodes_index=list(range(1000))
             ),
@@ -807,7 +807,7 @@ _CONFIGS = [
         data=LeRobotYumiDataConfig(
             repo_id="mlfu7/dpgs_sim_led_5k", # coffee maker 5k updated
             base_config=DataConfig(
-                local_files_only=False, 
+                local_files_only=True, 
                 prompt_from_task=True,
                 episodes_index=list(range(50))
             ),
@@ -826,7 +826,7 @@ _CONFIGS = [
         data=LeRobotYumiDataConfig(
             repo_id="mlfu7/dpgs_sim_led_5k", # coffee maker 5k updated
             base_config=DataConfig(
-                local_files_only=False, 
+                local_files_only=True, 
                 prompt_from_task=True,
                 episodes_index=list(range(100))
             ),
@@ -845,7 +845,7 @@ _CONFIGS = [
         data=LeRobotYumiDataConfig(
             repo_id="mlfu7/dpgs_sim_led_5k", # coffee maker 5k updated
             base_config=DataConfig(
-                local_files_only=False, 
+                local_files_only=True, 
                 prompt_from_task=True,
                 episodes_index=list(range(150))
             ),
@@ -864,7 +864,7 @@ _CONFIGS = [
         data=LeRobotYumiDataConfig(
             repo_id="mlfu7/dpgs_sim_led_5k", # coffee maker 5k updated
             base_config=DataConfig(
-                local_files_only=False, 
+                local_files_only=True, 
                 prompt_from_task=True,
                 episodes_index=list(range(1000))
             ),
