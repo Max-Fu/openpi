@@ -584,6 +584,65 @@ _CONFIGS = [
         ema_decay=None,
     ),
 
+    # real drawer configs
+    # real drawer 50
+    TrainConfig(
+        name="pi0_fast_real_yumi_drawer_50",
+        model=pi0_fast.Pi0FASTConfig(action_dim=16, action_horizon=10, paligemma_variant="gemma_2b_lora"),
+        data=LeRobotYumiDataConfig(
+            repo_id="mlfu7/dpgs_real_coffee_maker_150", # coffee maker 5k updated
+            base_config=DataConfig(
+                local_files_only=True, 
+                prompt_from_task=True,
+                episodes_index=list(range(50))
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_fast_base/params"),
+        num_train_steps=30_000,
+        freeze_filter=pi0_fast.Pi0FASTConfig(
+            action_dim=16, action_horizon=10, paligemma_variant="gemma_2b_lora"
+        ).get_freeze_filter(),
+        ema_decay=None,
+    ),
+    # drawer 100
+    TrainConfig(
+        name="pi0_fast_real_yumi_drawer_100",
+        model=pi0_fast.Pi0FASTConfig(action_dim=16, action_horizon=10, paligemma_variant="gemma_2b_lora"),
+        data=LeRobotYumiDataConfig(
+            repo_id="mlfu7/dpgs_real_coffee_maker_150", # coffee maker 5k updated
+            base_config=DataConfig(
+                local_files_only=True, 
+                prompt_from_task=True,
+                episodes_index=list(range(100))
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_fast_base/params"),
+        num_train_steps=30_000,
+        freeze_filter=pi0_fast.Pi0FASTConfig(
+            action_dim=16, action_horizon=10, paligemma_variant="gemma_2b_lora"
+        ).get_freeze_filter(),
+        ema_decay=None,
+    ),
+    # drawer 150
+    TrainConfig(
+        name="pi0_fast_real_yumi_drawer_150",
+        model=pi0_fast.Pi0FASTConfig(action_dim=16, action_horizon=10, paligemma_variant="gemma_2b_lora"),
+        data=LeRobotYumiDataConfig(
+            repo_id="mlfu7/dpgs_real_coffee_maker_150", # coffee maker 5k updated
+            base_config=DataConfig(
+                local_files_only=True, 
+                prompt_from_task=True,
+                episodes_index=list(range(150))
+            ),
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_fast_base/params"),
+        num_train_steps=30_000,
+        freeze_filter=pi0_fast.Pi0FASTConfig(
+            action_dim=16, action_horizon=10, paligemma_variant="gemma_2b_lora"
+        ).get_freeze_filter(),
+        ema_decay=None,
+    ),
+
     # drawer configs
     # drawer 50
     TrainConfig(
