@@ -19,7 +19,8 @@ Running this conversion script will take approximately 30 minutes.
 """
 
 import os 
-os.environ["LEROBOT_HOME"] = "/mnt/disks/ssd1/lerobot"
+# os.environ["LEROBOT_HOME"] = "/mnt/disks/ssd1/lerobot"
+os.environ["LEROBOT_HOME"] = "/shared/projects/icrl/data/dpgs/lerobot"
 import shutil
 import h5py 
 from lerobot.common.datasets.lerobot_dataset import LEROBOT_HOME
@@ -33,21 +34,34 @@ from openpi_client.image_tools import resize_with_pad
 RAW_DATASET_FOLDERS = [
     # "/mnt/disks/ssd7/dpgs_dataset/yumi_coffee_maker/successes_041325"
     # "/mnt/disks/ssd7/dpgs_dataset/yumi_faucet/successes_041425",
-    "/mnt/disks/ssd7/dpgs_dataset/yumi_led_light/successes_041425_2334"
+    # "/mnt/disks/ssd7/dpgs_dataset/yumi_led_light/successes_041425_2334"
+    # "/shared/projects/dpgs_dataset/yumi_bin_pickup/successes_041625_2054",
+    "/shared/projects/dpgs_dataset/yumi_drawer_open/successes_041725_2136/successes",
+    # "/shared/projects/dpgs_dataset/yumi_pick_tiger_r2r2r/successes_041725_2203",
+    # "/shared/projects/dpgs_dataset/yumi_led_light/successes_041825_1856",
+    # "/shared/projects/dpgs_dataset/yumi_cardboard_lift/successes_041825_2245",
     # "/shared/projects/dpgs_dataset/yumi_faucet/successes_041425" # bajcsy
     # "/shared/projects/dpgs_dataset/yumi_drawer_open/successes_041525_2044" # bajcsy
 ]
 LANGUAGE_INSTRUCTIONS = [
     # # "put the white cup on the coffee machine"
-    # "open the drawer"
+    "open the drawer"
+    # "pick up the tiger"
     # "turn off the faucet"
-    "turn the LED light"
+    # "turn the LED light"
+    # "pick up the cardboard box"
+    # "pick up the bin"
 ]
 
 # # REPO_NAME = "mlfu7/dpgs_sim_faucet_maker_5k_updated"  # Name of the output dataset, also used for the Hugging Face Hub
 # REPO_NAME = "mlfu7/dpgs_sim_faucet_5k"  # Name of the output dataset, also used for the Hugging Face Hub
 # REPO_NAME = "mlfu7/dpgs_sim_drawer_open_1k"  # Name of the output dataset, also used for the Hugging Face Hub
-REPO_NAME = "mlfu7/dpgs_sim_led_5k"  # Name of the output dataset, also used for the Hugging Face Hub
+# REPO_NAME = "mlfu7/dpgs_sim_led_5k"  # Name of the output dataset, also used for the Hugging Face Hub
+# REPO_NAME = "mlfu7/dpgs_sim_bin_pickup_1k"  # Name of the output dataset, also used for the Hugging Face Hub
+REPO_NAME = "mlfu7/dpgs_sim_drawer_open_v3_1k"  # Name of the output dataset, also used for the Hugging Face Hub
+# REPO_NAME = "mlfu7/dpgs_sim_tiger_1k"  # Name of the output dataset, also used for the Hugging Face Hub
+# REPO_NAME = "mlfu7/dpgs_sim_led_v2_1k"  # Name of the output dataset, also used for the Hugging Face Hub
+# REPO_NAME = "mlfu7/dpgs_bimanual_lift_v2_1k"  # Name of the output dataset, also used for the Hugging Face Hub
 
 CAMERA_KEYS = [
     "camera_0/rgb", 
@@ -149,15 +163,6 @@ def main():
     dataset.consolidate(run_compute_stats=False)
 
     print("Dataset saved to ", output_path)
-
-    # # Optionally push to the Hugging Face Hub
-    # dataset.push_to_hub(
-    #     tags=["otter", "franka", "pi_0", "multitask"],
-    #     private=True,
-    #     push_videos=True,
-    #     license="apache-2.0",
-    # )
-
 
 if __name__ == "__main__":
     main()
