@@ -38,6 +38,9 @@ class VisualizationArgs:
     camera_id: int = 0
     """Camera ID to use for visualization (e.g., 0 for camera_0)."""
 
+    first_n_traj: int = None
+    """Number of trajectories to process."""
+
 
 def main(args: VisualizationArgs) -> None:
     """Create a video visualizing the randomization across environment trajectories."""
@@ -51,7 +54,9 @@ def main(args: VisualizationArgs) -> None:
     
     # Collect first images from each environment
     images = []
-    for env_dir in tqdm(env_dirs, desc="Processing environments"):
+    if args.first_n_traj is None:
+        args.first_n_traj = len(env_dirs)
+    for env_dir in tqdm(env_dirs[:args.first_n_traj], desc="Processing environments"):
         rgb_dir = os.path.join(env_dir, f"camera_{args.camera_id}", "rgb")
         if not os.path.exists(rgb_dir):
             print(f"RGB directory not found in {env_dir}")
