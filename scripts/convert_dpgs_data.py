@@ -402,7 +402,8 @@ LANGUAGE_INSTRUCTIONS = [
 # REPO_NAME = "mlfu7/dpgs_sim_drawer_open_v3_1k"  # Name of the output dataset, also used for the Hugging Face Hub
 # REPO_NAME = "mlfu7/dpgs_sim_tiger_1k"  # Name of the output dataset, also used for the Hugging Face Hub
 # REPO_NAME = "mlfu7/dpgs_sim_tiger_1k_v4"  # Name of the output dataset, also used for the Hugging Face Hub
-REPO_NAME = "mlfu7/dpgs_sim_tiger_1k_v5"  # Name of the output dataset, also used for the Hugging Face Hub
+# REPO_NAME = "mlfu7/dpgs_sim_tiger_1k_v5"  # Name of the output dataset, also used for the Hugging Face Hub
+REPO_NAME = "mlfu7/dpgs_sim_tiger_1k_v6"  # use absolute gripper positions that is 0 (open), 1 (close)
 # REPO_NAME = "mlfu7/dpgs_sim_led_v2_1k"  # Name of the output dataset, also used for the Hugging Face Hub
 # REPO_NAME = "mlfu7/dpgs_bimanual_lift_v2_1k"  # Name of the output dataset, also used for the Hugging Face Hub
 # REPO_NAME = "mlfu7/dpgs_sim_faucet_v1_1k"  # Name of the output dataset, also used for the Hugging Face Hub
@@ -416,6 +417,7 @@ CAMERA_KEY_MAPPING = {
     "camera_1/rgb": "exterior_image_2_left",
 }
 STATE_KEY = "robot_data/robot_data_joint.zarr"
+GRIPPER_KEY = "robot_data/robot_data_gripper_cmd.zarr"
 RESIZE_SIZE = 224
 UPTO_N_TRAJ = None
 # UPTO_N_TRAJ = 1100
@@ -473,6 +475,7 @@ def main():
             print(f"Trajectory {idx}/{len(trajs)}: {task} is being processed")
             task_folder = f"{data_day_dir}/{task}"
             proprio_data = zarr.load(f"{task_folder}/{STATE_KEY}")
+            gripper_data = zarr.load(f"{task_folder}/{GRIPPER_KEY}")
             seq_length = proprio_data.shape[0] - 1 # remove the last proprio state since we need to calculate the action
             images = {
                 key : [
@@ -486,10 +489,15 @@ def main():
             for step in range(seq_length):
                 # load proprio data
                 proprio_t = proprio_data[step]
+
+                # replace proprio_t last two dimensions
+                proprio_t[-2:] = gripper_data[step]
+
                 # create delta action
                 action_t = proprio_data[step + 1] - proprio_t
-                # change the gripper to absolute 
-                action_t[-2:] = proprio_data[step + 1][-2:]
+                
+                # change the gripper to absolute position from t+1
+                action_t[-2:] = gripper_data[step + 1]
                 # get the images for this step
                 images_t = {
                     CAMERA_KEY_MAPPING[key]: resize_with_pad(
