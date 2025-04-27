@@ -33,13 +33,30 @@ from glob import glob
 
 RAW_DATASET_FOLDERS = [
     # "/shared/projects/dpgs_dataset/yumi_coffee_maker/real_data/yumi_mug_to_coffee_maker_041525_2142"
-    "/shared/projects/dpgs_dataset/yumi_drawer_open/real_data/yumi_drawer_open_041525_2142"
+    # "/shared/projects/dpgs_dataset/yumi_drawer_open/real_data/yumi_drawer_open_041525_2142"
+    # "/shared/projects/dpgs_dataset/yumi_faucet/real_data",
+    # "/shared/projects/dpgs_dataset/yumi_pick_tiger_r2r2r/real_data",
+    "/shared/projects/dpgs_dataset/yumi_cardboard_lift/real_data"
+    # "/shared/projects/dpgs_dataset/yumi_pick_tiger_r2r2r/yumi_tiger_pick_right_arm_250424_2146",
+    # "/shared/projects/dpgs_dataset/yumi_pick_tiger_r2r2r/yumi_tiger_pick_left_arm_250424_2108"
+    # "/shared/projects/dpgs_dataset/yumi_pick_tiger_r2r2r/left_right_combined_250424"
 ]
 LANGUAGE_INSTRUCTIONS = [
     # "put the white cup on the coffee machine"
-    "open the drawer"
+    # "open the drawer"
+    # "turn off the faucet"
+    # "pick up the tiger"
+    "pick up the cardboard box"
+    # "pick up the tiger with the right arm"
+    # "pick up the tiger with the left arm"
+    # "pick up the tiger"
 ]
-REPO_NAME = "mlfu7/dpgs_open_drawer_150"  # Name of the output dataset, also used for the Hugging Face Hub
+# REPO_NAME = "mlfu7/dpgs_real_faucet_150"  # Name of the output dataset, also used for the Hugging Face Hub
+# REPO_NAME = "mlfu7/dpgs_real_tiger_150"  # Name of the output dataset, also used for the Hugging Face Hub
+REPO_NAME = "mlfu7/dpgs_real_cardboard_lift_150"  # Name of the output dataset, also used for the Hugging Face Hub
+# REPO_NAME = "mlfu7/dpgs_real_tiger_pick_right_arm_80"  # Name of the output dataset, also used for the Hugging Face Hub
+# REPO_NAME = "mlfu7/dpgs_real_tiger_pick_left_arm_80"  # Name of the output dataset, also used for the Hugging Face Hub
+# REPO_NAME = "mlfu7/dpgs_real_tiger_pick_combined_160"  # Name of the output dataset, also used for the Hugging Face Hub
 
 CAMERA_KEYS = [
     "_left", 
@@ -98,7 +115,7 @@ def main():
         # get all the tasks that are collected that day 
         data_day_dir = raw_dataset_name
         print("Processing folder: ", data_day_dir)
-        traj_base_names = [i.replace(".h5", "") for i in glob(f"{data_day_dir}/*.h5")]
+        traj_base_names = [i.replace("_joint.zarr", "") for i in glob(f"{data_day_dir}/*_joint.zarr")]
         for idx, task in enumerate(traj_base_names):
             print(f"Trajectory {idx}/{len(traj_base_names)}: {task} is being processed")
             proprio_data = zarr.load(task + STATE_KEY)
