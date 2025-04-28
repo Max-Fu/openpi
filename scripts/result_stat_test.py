@@ -79,15 +79,15 @@ task_data = {
         "PI0-FAST (Finetuned)": (80.0, 73.3),
     },
     "Turn the faucet off": {
-        "Diffusion Policy": (80.0, 66.6),
+        "Diffusion Policy": (80.0, 66.7),
         "PI0-FAST (Finetuned)": (80.0, 80.0),
     },
     "Open the Drawer": {
-        "Diffusion Policy": (66.6, 66.6),
+        "Diffusion Policy": (66.6, 66.7),
         "PI0-FAST (Finetuned)": (86.6, 60.0),
     },
     "Pick up the package with both hands": {
-        "Diffusion Policy": (46.6, 80.0),
+        "Diffusion Policy": (73.3, 80.0),
         "PI0-FAST (Finetuned)": (66.6, 60.0),
     },
     # "Pick up the tiger": {

@@ -18,12 +18,13 @@ import collections
 
 # --- Data Generation Rates ---
 # Calculate average time for the tasks with specific times
-avg_real_time_min = (86.0 + 71.0 + 104.0) / 3.0 # Avg time for 150 demos
+avg_real_time_min = (86.0 + 71.0 + 104.0 + 90.0) / 4.0 # Avg time for 150 demos (including bimanual box)
 DEFAULT_REAL_TRAJ_PER_HOUR = (150.0 * 60.0) / avg_real_time_min # ~103.45 traj/hr
 TASK_SPECIFIC_REAL_RATES = {
     "Put the mug on the coffee maker": (150.0 * 60.0) / 86.0,  # 1hr 26min
     "Open the Drawer": (150.0 * 60.0) / 71.0,                 # 1hr 11min
     "Turn the faucet off": (150.0 * 60.0) / 104.0,             # 1hr 44min
+    "Pick up the package with both hands": (150.0 * 60.0) / 90.0,  # 1hr 30min
 }
 SYNTH_TRAJ_PER_HOUR = (1000.0 * 60.0) / 35.0 # ~1714.29 traj/hr (Using 1000 as reference count)
 SYNTH_SETUP_TIME_MINUTES = 5.0
