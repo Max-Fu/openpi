@@ -98,3 +98,48 @@ class LiberoOutputs(transforms.DataTransformFn):
         # For Libero, we only return the first 7 actions (since the rest is padding).
         # For your own dataset, replace `7` with the action dimension of your dataset.
         return {"actions": np.asarray(data["actions"][:, :7])}
+
+
+##############################################################################################################
+# Yam inputs and outputs
+##############################################################################################################
+@dataclasses.dataclass(frozen=True)
+class YamInputs(transforms.DataTransformFn):
+    model_type: _model.ModelType
+    
+    def __call__(self, data: dict) -> dict:
+        top_image = _parse_image(data["observation/image_top"])
+        left_image = _parse_image(data["observation/image_left"])
+        right_image = _parse_image(data["observation/image_right"])
+        
+        inputs = {
+            "state": data["observation/state"],
+            "image": {
+                "base_0_rgb": top_image,
+                "left_wrist_0_rgb": left_image,
+                "right_wrist_0_rgb": right_image,
+            },
+            "image_mask": {
+                "base_0_rgb": np.True_,
+                "left_wrist_0_rgb": np.True_,
+                "right_wrist_0_rgb": np.True_,
+            },
+        }
+        
+        if "actions" in data:
+            inputs["actions"] = data["actions"]
+
+        if "prompt" in data:
+            inputs["prompt"] = data["prompt"]
+
+        return inputs
+
+
+@dataclasses.dataclass(frozen=True)
+class YamOutputs(transforms.DataTransformFn):
+    """yam has a total of 14 dimensions for actions"""
+
+    action_dim: int = 14
+
+    def __call__(self, data: dict) -> dict:
+        return {"actions": np.asarray(data["actions"][:, :self.action_dim])}

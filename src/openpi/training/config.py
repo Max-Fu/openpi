@@ -65,6 +65,8 @@ class DataConfig:
     # LeRobot repo id. If None, fake data will be created.
     repo_id: str | None = None
     # Directory within the assets directory containing the data assets.
+    root: str | None = None
+    # Directory containing the data assets of the repo id.
     asset_id: str | None = None
     # Contains precomputed normalization stats. If None, normalization will not be performed.
     norm_stats: dict[str, _transforms.NormStats] | None = None
@@ -166,6 +168,8 @@ class ModelTransformFactory(GroupFactory):
 class DataConfigFactory(abc.ABC):
     # The LeRobot repo id.
     repo_id: str = tyro.MISSING
+    # The root directory of the data.
+    root: str | None = None
     # Determines how the assets will be loaded.
     assets: AssetsConfig = dataclasses.field(default_factory=AssetsConfig)
     # Base config that will be updated by the factory.
@@ -181,6 +185,7 @@ class DataConfigFactory(abc.ABC):
         return dataclasses.replace(
             self.base_config or DataConfig(),
             repo_id=repo_id,
+            root=self.root,
             asset_id=asset_id,
             norm_stats=self._load_norm_stats(epath.Path(self.assets.assets_dir or assets_dirs), asset_id),
             use_quantile_norm=model_config.model_type != ModelType.PI0,
@@ -450,6 +455,59 @@ class LeRobotDROIDDataConfig(DataConfigFactory):
             repack_transforms=repack_transform,
             data_transforms=data_transforms,
             model_transforms=model_transforms,
+        )
+
+@dataclasses.dataclass(frozen=True)
+class LeRobotYAMDataConfig(DataConfigFactory):
+    """
+    Example data config for custom DROID dataset in LeRobot format.
+    To convert your custom DROID dataset (<10s of hours) to LeRobot format, see examples/droid/convert_droid_data_to_lerobot.py
+    """
+
+    use_delta_joint_actions: bool = False
+    
+    # Action keys that will be used to read the action sequence from the dataset.
+    action_sequence_keys: Sequence[str] = ("action",)
+
+    @override
+    def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
+        repack_transform = _transforms.Group(
+            inputs=[
+                _transforms.RepackTransform(
+                    {
+                        "observation/image_left": "observation.images.left",
+                        "observation/image_right": "observation.images.right",
+                        "observation/image_top": "observation.images.top",
+                        "observation/state": "observation.state",
+                        "actions": "action",  # NOTE (YL) action 
+                        "prompt": "prompt",
+                    }
+                )
+            ]
+        )
+        # TODO (YL) yam data is currently in absolute actions, so we should apply an additional delta transform.
+        data_transforms = _transforms.Group(
+            inputs=[libero_policy.YamInputs(model_type=model_config.model_type)],
+            outputs=[libero_policy.YamOutputs()],
+        )
+        if self.use_delta_joint_actions:
+            delta_action_mask = _transforms.make_bool_mask(6, -1, 6, -1)
+            data_transforms = data_transforms.push(
+                inputs=[_transforms.DeltaActions(delta_action_mask)],
+                outputs=[_transforms.AbsoluteActions(delta_action_mask)],
+            )
+
+        # Model transforms include things like tokenizing the prompt and action targets
+        # You do not need to change anything here for your own dataset.
+        model_transforms = ModelTransformFactory()(model_config)
+
+        # We return all data transforms for training and inference. No need to change anything here.
+        return dataclasses.replace(
+            self.create_base_config(assets_dirs, model_config),
+            repack_transforms=repack_transform,
+            data_transforms=data_transforms,
+            model_transforms=model_transforms,
+            action_sequence_keys=self.action_sequence_keys,
         )
 
 
@@ -960,6 +1018,94 @@ _CONFIGS = [
     # RoboArena configs.
     #
     *roboarena_config.get_roboarena_configs(),
+    #
+    #########################################################################
+    # youliang's configs
+    #########################################################################
+    TrainConfig(
+        name="pi05_libero_lora",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_horizon=10,
+            discrete_state_input=False,
+            paligemma_variant="gemma_2b_lora",
+        ),
+        data=LeRobotLiberoDataConfig(
+            repo_id="physical-intelligence/libero",
+            base_config=DataConfig(prompt_from_task=True),
+            extra_delta_transform=False,
+        ),
+        batch_size=256,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=10_000,
+            peak_lr=5e-5,
+            decay_steps=1_000_000,
+            decay_lr=5e-5,
+        ),
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=0.999,
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        num_train_steps=30_000,
+        freeze_filter=pi0_config.Pi0Config(
+            paligemma_variant="gemma_2b_lora"
+        ).get_freeze_filter(),
+    ),
+    TrainConfig(
+        name="pi05_yam_lora",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_horizon=10,
+            discrete_state_input=False,
+            paligemma_variant="gemma_2b_lora",
+        ),
+        data=LeRobotYAMDataConfig(
+            repo_id="a4",
+            base_config=DataConfig(prompt_from_task=True),
+            use_delta_joint_actions=True,
+        ),
+        batch_size=256,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=5_000,
+            peak_lr=5e-5,
+            decay_steps=500_000,
+            decay_lr=5e-5,
+        ),
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=0.999,
+        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        num_train_steps=15_000,
+        freeze_filter=pi0_config.Pi0Config(
+            paligemma_variant="gemma_2b_lora",
+            action_expert_variant="gemma_300m_lora", # we will also freeze the action expert with lora
+        ).get_freeze_filter(),
+    ),
+    TrainConfig(
+        name="pi05_yam_full",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_horizon=10,
+            discrete_state_input=False,
+            paligemma_variant="gemma_2b",  # No LoRA - merged weights
+            action_expert_variant="gemma_300m",  # No LoRA - merged weights
+        ),
+        data=LeRobotYAMDataConfig(
+            repo_id="a4",
+            base_config=DataConfig(prompt_from_task=True),
+            use_delta_joint_actions=True,
+        ),
+        batch_size=256,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=5_000,
+            peak_lr=5e-5,
+            decay_steps=500_000,
+            decay_lr=5e-5,
+        ),
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=0.999,
+        weight_loader=weight_loaders.NoOpWeightLoader(),  # No loading needed - using merged checkpoint directly
+        num_train_steps=15_000,
+        freeze_filter=None,  # No frozen params for inference-only merged checkpoint
+    ),
 ]
 
 if len({config.name for config in _CONFIGS}) != len(_CONFIGS):
