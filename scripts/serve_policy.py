@@ -28,6 +28,10 @@ class Checkpoint:
     config: str
     # Checkpoint directory (e.g., "checkpoints/pi0_aloha_sim/exp/10000").
     dir: str
+    # whether to use delta actions during inference (default: True)
+    use_delta_actions: bool = True
+    # pi0 or pi0.5
+    pi05: bool = True
 
 
 @dataclasses.dataclass
@@ -89,8 +93,19 @@ def create_policy(args: Args) -> _policy.Policy:
     """Create a policy from the given arguments."""
     match args.policy:
         case Checkpoint():
+            # Get the train config
+            train_config = _config.get_config(args.policy.config)
+
+            # Create a modified data config with the override
+            modified_data = dataclasses.replace(train_config.data, use_delta_joint_actions=args.policy.use_delta_actions)
+            modified_model = dataclasses.replace(train_config.model, pi05=args.policy.pi05)
+            train_config = dataclasses.replace(train_config, data=modified_data, model=modified_model)
+
+            logging.info(f"Overriding pi05 to: {args.policy.pi05}")
+            logging.info(f"Overriding use_delta_joint_actions to: {args.policy.use_delta_actions}")
+
             return _policy_config.create_trained_policy(
-                _config.get_config(args.policy.config), args.policy.dir, default_prompt=args.default_prompt
+                train_config, args.policy.dir, default_prompt=args.default_prompt
             )
         case Default():
             return create_default_policy(args.env, default_prompt=args.default_prompt)
