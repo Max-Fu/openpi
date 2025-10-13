@@ -2,6 +2,7 @@ from collections.abc import Iterator, Sequence
 import logging
 import multiprocessing
 import os
+import platform
 import typing
 from typing import Literal, Protocol, SupportsIndex, TypeVar
 
@@ -428,7 +429,10 @@ class TorchDataLoader:
 
         mp_context = None
         if num_workers > 0:
-            mp_context = multiprocessing.get_context("spawn")
+            # Use 'fork' on Linux for faster worker initialization (workers inherit parent's imports)
+            # Use 'spawn' on other platforms for compatibility
+            method = "fork" if platform.system() == "Linux" else "spawn"
+            mp_context = multiprocessing.get_context(method)
 
         generator = torch.Generator()
         generator.manual_seed(seed)
@@ -444,7 +448,7 @@ class TorchDataLoader:
             worker_init_fn=_worker_init_fn,
             drop_last=True,
             generator=generator,
-            prefetch_factor=4,
+            prefetch_factor=None if num_workers == 0 else 4,
             pin_memory=True,
         )
 
