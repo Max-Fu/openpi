@@ -32,6 +32,8 @@ class Checkpoint:
     use_delta_actions: bool = True
     # pi0 or pi0.5
     pi05: bool = True
+    # repo id
+    repo_id: str = "a4"
 
 
 @dataclasses.dataclass
@@ -97,7 +99,9 @@ def create_policy(args: Args) -> _policy.Policy:
             train_config = _config.get_config(args.policy.config)
 
             # Create a modified data config with the override
+            # modify the use_delta_joint_actions and repo_id in data config
             modified_data = dataclasses.replace(train_config.data, use_delta_joint_actions=args.policy.use_delta_actions)
+            modified_data = dataclasses.replace(modified_data, repo_id=args.policy.repo_id)
             modified_model = dataclasses.replace(train_config.model, pi05=args.policy.pi05)
             train_config = dataclasses.replace(train_config, data=modified_data, model=modified_model)
 
