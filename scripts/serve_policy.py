@@ -34,6 +34,8 @@ class Checkpoint:
     pi05: bool = True
     # repo id
     repo_id: str = "a4"
+    # action horizon
+    action_horizon: int = 40
 
 
 @dataclasses.dataclass
@@ -103,6 +105,7 @@ def create_policy(args: Args) -> _policy.Policy:
             modified_data = dataclasses.replace(train_config.data, use_delta_joint_actions=args.policy.use_delta_actions)
             modified_data = dataclasses.replace(modified_data, repo_id=args.policy.repo_id)
             modified_model = dataclasses.replace(train_config.model, pi05=args.policy.pi05)
+            modified_model = dataclasses.replace(modified_model, action_horizon=args.policy.action_horizon)
             train_config = dataclasses.replace(train_config, data=modified_data, model=modified_model)
 
             logging.info(f"Overriding pi05 to: {args.policy.pi05}")
