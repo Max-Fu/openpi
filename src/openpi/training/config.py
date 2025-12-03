@@ -475,9 +475,9 @@ class LeRobotYAMDataConfig(DataConfigFactory):
             inputs=[
                 _transforms.RepackTransform(
                     {
-                        "observation/image_left": "observation.images.left",
-                        "observation/image_right": "observation.images.right",
-                        "observation/image_top": "observation.images.top",
+                        "observation/image_left": "observation.images.left_camera-images-rgb_320_240",
+                        "observation/image_right": "observation.images.right_camera-images-rgb_320_240",
+                        "observation/image_top": "observation.images.top_camera-images-rgb_320_240",
                         "observation/state": "observation.state",
                         "actions": "action",  # NOTE (YL) action 
                         "prompt": "prompt",
@@ -491,7 +491,7 @@ class LeRobotYAMDataConfig(DataConfigFactory):
             outputs=[libero_policy.YamOutputs()],
         )
         if self.use_delta_joint_actions:
-            delta_action_mask = _transforms.make_bool_mask(6, -1, 6, -1)
+            delta_action_mask = _transforms.make_bool_mask(-1, -1, 6, 6) # (Max: the ordering now is GripperL, GripperR, JointL, JointR)
             data_transforms = data_transforms.push(
                 inputs=[_transforms.DeltaActions(delta_action_mask)],
                 outputs=[_transforms.AbsoluteActions(delta_action_mask)],
@@ -1044,7 +1044,8 @@ _CONFIGS = [
         ),
         optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
         ema_decay=0.999,
-        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        # weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/mnt/amlfs-02/shared/checkpoints/maxf/openpi/pi05_base/params"),
         num_train_steps=30_000,
         freeze_filter=pi0_config.Pi0Config(
             paligemma_variant="gemma_2b_lora"
@@ -1072,7 +1073,8 @@ _CONFIGS = [
         ),
         optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
         ema_decay=0.999,
-        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        # weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/mnt/amlfs-02/shared/checkpoints/maxf/openpi/pi05_base/params"),
         num_train_steps=15_000,
         freeze_filter=pi0_config.Pi0Config(
             paligemma_variant="gemma_2b_lora",

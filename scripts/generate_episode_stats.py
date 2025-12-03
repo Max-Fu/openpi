@@ -150,6 +150,8 @@ if __name__ == "__main__":
 
     # check if the output file exists
     if os.path.exists(output_file):
-        raise ValueError(f"Output file {output_file} already exists")
+        os.remove(output_file)
+        print(f"Removed output file {output_file}")
+        # raise ValueError(f"Output file {output_file} already exists")
 
     main(args.data_dir)
