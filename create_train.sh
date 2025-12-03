@@ -17,9 +17,11 @@ echo "Found ${#dataset_paths[@]} datasets to process"
 for dataset_path in "${dataset_paths[@]}"; do
     echo "creating train script for: $dataset_path"
     repo_id=$(basename $dataset_path)
-    train_script="CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
+    train_script="
+    source .venv/bin/activate && \
+    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
     XLA_PYTHON_CLIENT_MEM_FRACTION=0.95 \
-    uv run scripts/train.py pi05_yam_lora \
+    python scripts/train.py pi05_yam_lora \
     --data.repo-id $repo_id  \
     --data.use-delta-joint-actions \
     --data.root $dataset_path \
