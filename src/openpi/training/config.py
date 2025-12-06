@@ -491,7 +491,7 @@ class LeRobotYAMDataConfig(DataConfigFactory):
             outputs=[libero_policy.YamOutputs()],
         )
         if self.use_delta_joint_actions:
-            delta_action_mask = _transforms.make_bool_mask(-1, -1, 6, 6) # (Max: the ordering now is GripperL, GripperR, JointL, JointR)
+            delta_action_mask = _transforms.make_bool_mask(6, -1, 6, -1)
             data_transforms = data_transforms.push(
                 inputs=[_transforms.DeltaActions(delta_action_mask)],
                 outputs=[_transforms.AbsoluteActions(delta_action_mask)],

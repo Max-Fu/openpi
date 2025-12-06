@@ -18,7 +18,13 @@ def remove_eef_from_parquet(parquet_path: str) -> pd.DataFrame:
 
     for column in ("observation.state", "action"):
         stacked = np.stack(df[column].to_numpy())
-        df[column] = list(stacked[:, 32:])  # keep per-row array objects
+        # reorder the stacked columns 
+        left_gripper = stacked[:, 32:33]
+        right_gripper = stacked[:, 33:34]
+        left_joints = stacked[:, 34:40]
+        right_joints = stacked[:, 40:46]
+        new_order = np.concatenate([left_joints, left_gripper, right_joints, right_gripper], axis=1)
+        df[column] = list(new_order)  # keep per-row array objects
 
     return df
 
@@ -49,7 +55,12 @@ def process_folder(folder_path: str) -> None:
         stats = json.load(f)
     for key in ["observation.state", "action"]:
         for stat_type in stats[key]:
-            stats[key][stat_type] = stats[key][stat_type][32:]
+            left_gripper = stats[key][stat_type][32:33]
+            right_gripper = stats[key][stat_type][33:34]
+            left_joints = stats[key][stat_type][34:40]
+            right_joints = stats[key][stat_type][40:46]
+            new_order = left_joints + left_gripper + right_joints + right_gripper
+            stats[key][stat_type] = new_order
     with open(stats_path, "w") as f:
         json.dump(stats, f)
 
