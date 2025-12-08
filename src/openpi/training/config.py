@@ -1082,6 +1082,31 @@ _CONFIGS = [
         ).get_freeze_filter(),
     ),
     TrainConfig(
+        name="pi05_yam",
+        model=pi0_config.Pi0Config(
+            pi05=True,
+            action_horizon=10,
+            discrete_state_input=False,
+        ),
+        data=LeRobotYAMDataConfig(
+            repo_id="a4",
+            base_config=DataConfig(prompt_from_task=True),
+            use_delta_joint_actions=True,
+        ),
+        batch_size=256,
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=5_000,
+            peak_lr=5e-5,
+            decay_steps=500_000,
+            decay_lr=5e-5,
+        ),
+        optimizer=_optimizer.AdamW(clip_gradient_norm=1.0),
+        ema_decay=0.999,
+        # weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/mnt/amlfs-02/shared/checkpoints/maxf/openpi/pi05_base/params"),
+        num_train_steps=30_000,
+    ),
+    TrainConfig(
         name="pi05_yam_full",
         model=pi0_config.Pi0Config(
             pi05=True,
