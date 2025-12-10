@@ -1,7 +1,7 @@
-GLOBAL_BATCH_SIZE=512
+GLOBAL_BATCH_SIZE=256
 CHECKPOINT_BASE_DIR=/mnt/amlfs-02/shared/checkpoints/maxf/openpi
-TOTAL_STEPS=10000
-train_script_root="yam_train_scripts"
+TOTAL_STEPS=30000
+train_script_root="yam_train_scripts/ft_all"
 mkdir -p $train_script_root
 
 # Collect all dataset paths
@@ -19,18 +19,16 @@ for dataset_path in "${dataset_paths[@]}"; do
     repo_id=$(basename $dataset_path)
     train_script="
     source .venv/bin/activate && \
-    CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
     XLA_PYTHON_CLIENT_MEM_FRACTION=0.95 \
-    python scripts/train.py pi05_yam_lora \
+    python scripts/train.py pi05_yam \
     --data.repo-id $repo_id  \
-    --data.use-delta-joint-actions \
     --data.root $dataset_path \
     --save-interval 1000 \
     --keep-period 2500 \
     --log-interval 20 \
     --num-train-steps $TOTAL_STEPS \
     --model.action-horizon 40 \
-    --exp-name $repo_id \
+    --exp-name $repo_id"_abs_joint_actions_ft_all" \
     --checkpoint-base-dir $CHECKPOINT_BASE_DIR \
     --num-workers 40 \
     --batch-size $GLOBAL_BATCH_SIZE \
